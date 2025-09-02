@@ -7,7 +7,7 @@
     "dev": "vite",
     "dev:functions": "npx firebase emulators:start --only functions",
     "dev:full": "concurrently \"npm run dev:functions\" \"npm run dev\"",
-    "build": "vite build",
+    "functions": "cd functions && npm run emulators"
     "lint": "eslint .",
     "preview": "vite preview"
   },
