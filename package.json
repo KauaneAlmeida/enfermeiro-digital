@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:functions": "firebase emulators:start --only functions",
+    "dev:functions": "npx firebase emulators:start --only functions",
     "dev:full": "concurrently \"npm run dev:functions\" \"npm run dev\"",
     "build": "vite build",
     "lint": "eslint .",
