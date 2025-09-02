@@ -3,12 +3,12 @@
   "description": "Firebase Cloud Functions for Cuidador Digital medication reminders",
   "scripts": {
     "lint": "eslint .",
-    "serve": "firebase emulators:start --only functions",
-    "shell": "firebase functions:shell",
+    "serve": "npx firebase emulators:start --only functions",
+    "shell": "npx firebase functions:shell",
     "start": "npm run shell",
     "deploy": "npx firebase deploy --only functions",
     "logs": "npx firebase functions:log",
-    "emulators": "npx firebase emulators:start --only functions"
+    "emulators": "npx firebase emulators:start"
   },
   "engines": {
     "node": "18"
