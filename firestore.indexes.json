@@ -1,0 +1,51 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "lembretes_status",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "idosoId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dataHora",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "lembretes_status",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dataHora",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "medicamentos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "idosoId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ativo",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
