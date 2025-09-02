@@ -1,62 +1,75 @@
-// Carrega variáveis de ambiente do arquivo .env
+// Load environment variables from .env file FIRST
 require('dotenv').config();
 
-// Debug para verificar se carregou as variáveis
-console.log("✅ Twilio SID carregado:", process.env.TWILIO_ACCOUNT_SID);
+// Debug logs to verify environment variables are loaded
+console.log('🔧 Environment Variables Check:');
+console.log('✅ TWILIO_ACCOUNT_SID:', process.env.TWILIO_ACCOUNT_SID ? 'Loaded' : '❌ Missing');
+console.log('✅ TWILIO_AUTH_TOKEN:', process.env.TWILIO_AUTH_TOKEN ? 'Loaded' : '❌ Missing');
+console.log('✅ TWILIO_PHONE_NUMBER:', process.env.TWILIO_PHONE_NUMBER ? 'Loaded' : '❌ Missing');
+console.log('✅ TEST_PHONE_NUMBER:', process.env.TEST_PHONE_NUMBER ? 'Loaded' : '❌ Missing');
 
-// Dependências Firebase e Twilio
+// Firebase and Twilio dependencies
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const twilio = require('twilio');
 const cors = require('cors')({ origin: true });
 
-// Inicializa Firebase Admin SDK
+// Initialize Firebase Admin SDK
 admin.initializeApp();
 const db = admin.firestore();
 
-// Inicializa Twilio Client usando env
+// Initialize Twilio Client using environment variables
 const twilioClient = twilio(
   process.env.TWILIO_ACCOUNT_SID,
   process.env.TWILIO_AUTH_TOKEN
 );
 
-// Exemplo de Cloud Function para enviar mensagem WhatsApp
+// Test function to send WhatsApp message using environment variables
 exports.sendWhatsAppMessage = functions.https.onRequest((req, res) => {
   cors(req, res, async () => {
     try {
+      console.log('📱 Testing WhatsApp message sending...');
+      console.log('📞 From:', process.env.TWILIO_PHONE_NUMBER);
+      console.log('📞 To:', process.env.TEST_PHONE_NUMBER);
+
+      // Verify Twilio credentials are available
+      if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
+        throw new Error('Twilio credentials not found in environment variables');
+      }
+
+      if (!process.env.TWILIO_PHONE_NUMBER || !process.env.TEST_PHONE_NUMBER) {
+        throw new Error('Phone numbers not found in environment variables');
+      }
+
       const message = await twilioClient.messages.create({
         from: process.env.TWILIO_PHONE_NUMBER,
         to: process.env.TEST_PHONE_NUMBER,
-        body: '🚀 Teste de mensagem pelo Firebase Functions + Twilio!'
+        body: '🚀 Teste de mensagem pelo Firebase Functions + Twilio!\n\nSe você recebeu esta mensagem, a configuração está funcionando perfeitamente! ✅'
       });
 
-      console.log("Mensagem enviada:", message.sid);
-      return res.status(200).json({ success: true, sid: message.sid });
+      console.log('✅ Message sent successfully:', message.sid);
+      console.log('📊 Message status:', message.status);
+
+      return res.status(200).json({ 
+        success: true, 
+        sid: message.sid,
+        status: message.status,
+        message: 'WhatsApp message sent successfully!'
+      });
 
     } catch (error) {
-      console.error("Erro ao enviar mensagem:", error);
-      return res.status(500).json({ success: false, error: error.message });
+      console.error('❌ Error sending WhatsApp message:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: error.message,
+        details: 'Check console logs for more information'
+      });
     }
   });
 });
 
-/**
- * 🔧 Helper para buscar configs do Twilio
- * - Local → usa .env.local
- * - Produção → usa functions:config:set
- */
+// Helper function to get Twilio configuration
 const getTwilioConfig = () => {
-  if (process.env.FUNCTION_TARGET) {
-    // Ambiente Firebase (produção)
-    const config = functions.config();
-    return {
-      sid: config.twilio?.account_sid,
-      token: config.twilio?.auth_token,
-      phone: config.twilio?.phone_number,
-    };
-  }
-
-  // Ambiente Local (.env.local)
   return {
     sid: process.env.TWILIO_ACCOUNT_SID,
     token: process.env.TWILIO_AUTH_TOKEN,
@@ -64,7 +77,7 @@ const getTwilioConfig = () => {
   };
 };
 
-// Inicializa cliente Twilio
+// Initialize Twilio client with error handling
 const getTwilioClient = () => {
   const cfg = getTwilioConfig();
   if (!cfg.sid || !cfg.token) {
@@ -74,8 +87,13 @@ const getTwilioClient = () => {
   return twilio(cfg.sid, cfg.token);
 };
 
-// 📱 Formata telefone para WhatsApp
+// Format phone number for WhatsApp
 const formatPhoneForWhatsApp = (phone) => {
+  // If already formatted with whatsapp: prefix, return as is
+  if (phone.startsWith('whatsapp:')) {
+    return phone;
+  }
+  
   const digits = phone.replace(/\D/g, '');
   if (digits.length === 10 || digits.length === 11) {
     return `whatsapp:+55${digits}`;
@@ -83,7 +101,7 @@ const formatPhoneForWhatsApp = (phone) => {
   return `whatsapp:+${digits}`;
 };
 
-// 📩 Envia mensagem no WhatsApp
+// Send WhatsApp message utility
 const sendWhatsAppMessage = async (to, message) => {
   const twilioClient = getTwilioClient();
   const cfg = getTwilioConfig();
@@ -97,7 +115,7 @@ const sendWhatsAppMessage = async (to, message) => {
     console.log(`📱 Sending WhatsApp to ${to}: ${message}`);
 
     const result = await twilioClient.messages.create({
-      from: cfg.phone, // vem do .env.local ou do Firebase
+      from: cfg.phone,
       to: formatPhoneForWhatsApp(to),
       body: message,
     });
@@ -110,12 +128,12 @@ const sendWhatsAppMessage = async (to, message) => {
   }
 };
 
-// 🔔 Cria mensagem de lembrete
+// Create reminder message template
 const createReminderMessage = (nomeIdoso, medicacao, dosagem) => {
   return `Olá, ${nomeIdoso} 👋 — Hora do remédio ${medicacao} (${dosagem}). Responda: 1) ✅ Tomei 2) ❌ Não tomei 3) ⏳ Adiar 10 min.`;
 };
 
-// ⏰ Hora atual no fuso de São Paulo
+// Get current Brazil time
 const getCurrentBrazilTime = () => {
   return new Date().toLocaleString('en-US', {
     timeZone: 'America/Sao_Paulo',
@@ -125,7 +143,7 @@ const getCurrentBrazilTime = () => {
   });
 };
 
-// 📅 Dia atual da semana (0 = domingo)
+// Get current day of week (0 = Sunday)
 const getCurrentDayOfWeek = () => {
   return new Date().toLocaleDateString('en-US', {
     timeZone: 'America/Sao_Paulo',
@@ -134,10 +152,10 @@ const getCurrentDayOfWeek = () => {
 };
 
 /* ============================================================
-   ⚡️ FUNCTIONS DO SISTEMA
+   ⚡️ SYSTEM FUNCTIONS
    ============================================================ */
 
-// ✅ Verificação de lembretes de medicação
+// Check medication reminders (runs every minute)
 exports.checkMedicationReminders = functions.pubsub
   .schedule('every 1 minutes')
   .timeZone('America/Sao_Paulo')
@@ -222,7 +240,7 @@ exports.checkMedicationReminders = functions.pubsub
     }
   });
 
-// ✅ Webhook para respostas do WhatsApp
+// WhatsApp webhook handler
 exports.handleWhatsAppWebhook = functions.https.onRequest((req, res) => {
   return cors(req, res, async () => {
     try {
@@ -230,12 +248,15 @@ exports.handleWhatsAppWebhook = functions.https.onRequest((req, res) => {
       const phoneNumber = From?.replace('whatsapp:', '') || '';
       const message = Body?.trim() || '';
 
+      console.log(`📱 Received WhatsApp message from ${phoneNumber}: ${message}`);
+
       const idososSnapshot = await db
         .collection('idosos')
         .where('whatsapp', '==', phoneNumber.replace('+55', ''))
         .get();
 
       if (idososSnapshot.empty) {
+        console.log('❌ Idoso not found for phone:', phoneNumber);
         res.json({ success: false, error: 'Idoso not found' });
         return;
       }
@@ -319,7 +340,7 @@ exports.handleWhatsAppWebhook = functions.https.onRequest((req, res) => {
   });
 });
 
-// ✅ Registro de usuários e medicamentos
+// Registration endpoint
 exports.saveRegistration = functions.https.onRequest((req, res) => {
   return cors(req, res, async () => {
     try {
@@ -329,6 +350,8 @@ exports.saveRegistration = functions.https.onRequest((req, res) => {
         res.status(400).json({ success: false, error: "Dados obrigatórios faltando" });
         return;
       }
+
+      console.log('💾 Saving registration data...');
 
       const responsavelRef = await db.collection('responsaveis').add({
         ...responsavel,
@@ -351,6 +374,7 @@ exports.saveRegistration = functions.https.onRequest((req, res) => {
       );
       await Promise.all(medicamentosPromises);
 
+      let contatosCount = 0;
       if (contatos && contatos.length > 0) {
         const contatosPromises = contatos.map(contato =>
           db.collection('contatos_emergencia').add({
@@ -360,6 +384,7 @@ exports.saveRegistration = functions.https.onRequest((req, res) => {
           })
         );
         await Promise.all(contatosPromises);
+        contatosCount = contatos.length;
       }
 
       await db.collection('lgpd_consents').add({
@@ -369,11 +394,23 @@ exports.saveRegistration = functions.https.onRequest((req, res) => {
         versao: "1.0",
       });
 
-      const welcomeMessage = `Olá, ${idoso.nome}! 👋\n\nSou o Cuidador Digital.`;
+      console.log('📱 Sending welcome message...');
+      const welcomeMessage = `Olá, ${idoso.nome}! 👋\n\nSou o Cuidador Digital e vou te ajudar a lembrar dos seus medicamentos.\n\nQuando receber um lembrete, responda:\n1️⃣ para "Tomei"\n2️⃣ para "Não tomei"\n3️⃣ para "Adiar 10 min"\n\nPara parar os lembretes, envie "SAIR".\n\nVamos cuidar da sua saúde juntos! 💙`;
 
-      await sendWhatsAppMessage(idoso.whatsapp, welcomeMessage);
+      const twilioResult = await sendWhatsAppMessage(idoso.whatsapp, welcomeMessage);
 
-      res.json({ success: true, message: "Registro realizado com sucesso" });
+      res.json({ 
+        success: true, 
+        message: "Registro realizado com sucesso",
+        data: {
+          idosoId: idosoRef.id,
+          responsavelId: responsavelRef.id,
+          contatosCount,
+          medicamentosCount: medicamentos.length,
+          twilioSent: twilioResult.success,
+          twilioSid: twilioResult.sid
+        }
+      });
     } catch (error) {
       console.error('❌ Error in saveRegistration:', error);
       res.status(500).json({ success: false, error: error.message });
@@ -381,7 +418,7 @@ exports.saveRegistration = functions.https.onRequest((req, res) => {
   });
 });
 
-// ✅ Relatórios
+// Generate reports
 exports.generateReport = functions.https.onRequest((req, res) => {
   return cors(req, res, async () => {
     try {
@@ -419,7 +456,11 @@ exports.generateReport = functions.https.onRequest((req, res) => {
       const total = tomados + naoTomados + adiados + semResposta;
       res.json({
         success: true,
-        data: { date: targetDate.toISOString(), idosoId, statistics: { total, tomados, naoTomados, adiados, semResposta } }
+        data: { 
+          date: targetDate.toISOString(), 
+          idosoId, 
+          statistics: { total, tomados, naoTomados, adiados, semResposta } 
+        }
       });
     } catch (error) {
       console.error('❌ Error in generateReport:', error);
@@ -428,12 +469,21 @@ exports.generateReport = functions.https.onRequest((req, res) => {
   });
 });
 
-// ✅ Health check
+// Health check endpoint
 exports.getHealthStatus = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   try {
     const twilioClient = getTwilioClient();
     const cfg = getTwilioConfig();
+    
+    console.log('🏥 Health check requested');
+    console.log('🔧 Twilio config check:', {
+      hasSid: !!cfg.sid,
+      hasToken: !!cfg.token,
+      hasPhone: !!cfg.phone,
+      hasClient: !!twilioClient
+    });
+    
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -442,8 +492,13 @@ exports.getHealthStatus = functions.https.onRequest(async (req, res) => {
         twilio: !!(twilioClient && cfg.phone),
         timezone: 'America/Sao_Paulo',
       },
+      environment: {
+        nodeVersion: process.version,
+        twilioConfigured: !!(cfg.sid && cfg.token && cfg.phone)
+      }
     });
   } catch (error) {
+    console.error('❌ Health check error:', error);
     res.status(500).json({ status: 'error', error: error.message });
   }
 });
